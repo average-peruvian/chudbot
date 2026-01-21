@@ -5,12 +5,12 @@ API documentation: https://github.com/4chan/4chan-API
 import re, time, requests
 from dataclasses import dataclass, asdict
 
-BASE_URL = "https://a.4cdn.org"
+BASE_URL = 'https://a.4cdn.org'
 RATE_LIMIT_DELAY = 1.0
 
 def clean_comment(txt):
     if not txt:
-        return ""
+        return ''
     
     txt = re.sub(r'<br\s*/?>','\n',txt)
     txt = re.sub(r'<a[^>]*class="quotelink"[^>]*>>>(\d+)</a>', r'>>\1',txt)
@@ -33,6 +33,13 @@ class Post:
     is_op: bool
     replies_to: list[int]
 
+    def to_dict(self):
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
 class ScraperChan:
     def __init__(self, rate_limit = RATE_LIMIT_DELAY):
         self.session = requests.Session()
@@ -51,33 +58,33 @@ class ScraperChan:
         
     def get_boards(self):
         data = self._request('boards.json')
-        return data.get("boards", []) if data else []
+        return data.get('boards', []) if data else []
     
     def get_catalog(self, board):
-        data = self._request(f"{board}/catalog.json")
+        data = self._request(f'{board}/catalog.json')
         if not data:
             return []
         
         threads = []
         for page in data:
-            threads.extend(page.get("threads", []))
+            threads.extend(page.get('threads', []))
         return threads
     
     def get_thread(self, board, thread_id):
-        data = self._request(f"{board}/thread/{thread_id}.json")
-        return data.get("posts", []) if data else []
+        data = self._request(f'{board}/thread/{thread_id}.json')
+        return data.get('posts', []) if data else []
     
     def scrape_thread(self, board, thread_id):
         posts = []
         thread_posts = self.get_thread(board,thread_id)
 
         for j, post_data in enumerate(thread_posts):
-            comment = clean_comment(post_data.get("com",""))
+            comment = clean_comment(post_data.get('com',''))
             if not comment:
                 continue
 
             post = Post(
-                post_id = post_data["no"],
+                post_id = post_data['no'],
                 thread_id = thread_id,
                 board = board,
                 comment = comment,
@@ -98,7 +105,7 @@ class ScraperChan:
         posts = []
         catalog = self.get_catalog(board)
 
-        threads = [t for t in catalog if t.get("replies", 0) >= min_replies]
+        threads = [t for t in catalog if t.get('replies', 0) >= min_replies]
         threads = threads[:max_threads]
 
         if verbose:
@@ -114,7 +121,7 @@ class ScraperChan:
 
         return posts
     
-if __name__ == '__main__':
+if __name__ == "__main__":
     scraper = ScraperChan()
     boards = scraper.get_boards()
     print(f'Available boards: {len(boards)}')

@@ -1,0 +1,119 @@
+import json
+from pathlib import Path
+from datasets import Dataset
+
+from .scraper import Post
+
+class DataProcessor:
+    def __init__(self,
+        min_length = 20,
+        max_length = 2000,
+        max_quote_ratio = 0.7
+        ):
+        self.min_length = min_length
+        self.max_length = max_length
+        self.max_quote_ratio = max_quote_ratio
+
+    def filter_post(self, post):
+        comment = post.comment
+
+        if len(comment) < self.min_length or len(comment) > self.max_length:
+            return False
+        
+        lines = comment.split('\n')
+        if lines:
+            quote_lines = sum(1 for l in lines if l.strip().startswith('>'))
+            if quote_lines > len(lines) * self.max_quote_ratio:
+                return False
+            
+        return True
+    
+    def build_conversation_pairs(self, posts):
+        """
+        Creates (context, response) pairs from reply chains.
+        """
+        post_map = {p.post_id: p for p in posts}
+        
+        pairs = []
+        for post in posts:
+            if not post.replies_to:
+                continue
+
+            # Post it replies to
+            for ref_id in post.replies_to:
+                if ref_id in post_map:
+                    parent = post_map[ref_id]
+                    if self.filter_post(parent) and self.filter_post(post):
+                        pairs.append({
+                            'input': parent.comment,
+                            'output': post.comment,
+                            'board': post.board
+                        })
+
+        return pairs
+    
+    def build_completion_data(self, posts):
+        """
+        Builds simple completion data (so just the posts lol).
+        """
+        return [
+            {'text': post.comment, 'board': post.board}
+            for post in posts
+            if self.filter_post(post)
+        ]
+    
+    def format_for_training(self,
+        data,
+        mode = 'completion',
+        chat_template = '### Human: {input}\n\n### Assistant: {output}'
+        ):
+        formatted = []
+
+        for item in data:
+            if mode == 'completion':
+                formatted.append({'text': item['text']})
+            elif mode == 'chat':
+                text = chat_template.format(
+                    input = item['input'],
+                    output = item['output']
+                )
+                formatted.append({'text':text})
+
+        return formatted
+    
+    def create_dataset(self,
+        posts,
+        mode = 'completion',
+        chat_template = None
+        ):
+        """
+        Creates a HuggingFace-compatible Dataset from posts.
+        """
+        if mode == 'chat':
+            data = self.build_conversation_pairs(posts)
+        else:
+            data = self.build_completion_data(posts)
+
+        if chat_template:
+            formatted = self.format_for_training(data, mode, chat_template)
+        else:
+            formatted = self.format_for_training(data, mode)
+
+        return Dataset.from_list(formatted)
+    
+def save_posts(posts, filepath):
+    filepath = Path(filepath)
+    filepath.parent.mkdir(parents=True,exist_ok=True)
+
+    with open(filepath, 'w') as f:
+        json.dump([p.to_dict() for p in posts], f, indent=2)
+
+    print(f'Saved {len(posts)} posts to {filepath}.')
+
+def load_posts(filepath):
+    with open(filepath) as f:
+        data = json.load(f)
+
+    posts = [Post.from_dict(p) for p in data]
+    print(f'Loaded {len(posts)} posts from {filepath}')
+    return posts
