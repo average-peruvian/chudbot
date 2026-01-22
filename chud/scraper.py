@@ -2,7 +2,7 @@
 API documentation: https://github.com/4chan/4chan-API
 """
 
-import re, time, requests
+import re, time, requests, html
 from dataclasses import dataclass, asdict
 
 BASE_URL = 'https://a.4cdn.org'
@@ -15,6 +15,7 @@ def clean_comment(txt):
     txt = re.sub(r'<br\s*/?>','\n',txt)
     txt = re.sub(r'<a[^>]*class="quotelink"[^>]*>>>(\d+)</a>', r'>>\1',txt)
     txt = re.sub(r'<[^>]+>', '',txt)
+    txt = html.unescape(txt)
     txt = re.sub(r'\n{3,}','\n\n',txt)
     txt = txt.strip()
     return txt
@@ -83,6 +84,9 @@ class ScraperChan:
             if not comment:
                 continue
 
+            refs = extract_refs(comment)
+            comment = re.sub(r'>>\d+\s*','',comment)
+
             post = Post(
                 post_id = post_data['no'],
                 thread_id = thread_id,
@@ -90,7 +94,7 @@ class ScraperChan:
                 comment = comment,
                 timestamp = post_data.get('time',0),
                 is_op = (j == 0),
-                replies_to = extract_refs(comment)
+                replies_to = refs
             )
             posts.append(post)
 

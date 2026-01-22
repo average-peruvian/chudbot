@@ -1,18 +1,35 @@
-import json
+import json, re
 from pathlib import Path
 from datasets import Dataset
 
 from .scraper import Post
 
+def has_url(txt):
+    url_patterns = [
+            r'https?://',
+            r'www\.',
+            r'\.[a-z]{2,}/\S',
+            r'bit\.ly',
+            r'goo\.gl',
+            r't\.co',
+        ]
+    
+    for pattern in url_patterns:
+        if re.search(pattern, txt, re.IGNORECASE):
+            return True
+    return False
+
 class DataProcessor:
     def __init__(self,
         min_length = 20,
         max_length = 2000,
-        max_quote_ratio = 0.7
+        max_quote_ratio = 0.7,
+        deduplicate = True
         ):
         self.min_length = min_length
         self.max_length = max_length
         self.max_quote_ratio = max_quote_ratio
+        self.deduplicate = deduplicate
 
     def filter_post(self, post):
         comment = post.comment
@@ -25,9 +42,12 @@ class DataProcessor:
             quote_lines = sum(1 for l in lines if l.strip().startswith('>'))
             if quote_lines > len(lines) * self.max_quote_ratio:
                 return False
-            
+        
+        if has_url(comment):
+            return False
+
         return True
-    
+
     def build_conversation_pairs(self, posts):
         """
         Creates (context, response) pairs from reply chains.
@@ -35,6 +55,8 @@ class DataProcessor:
         post_map = {p.post_id: p for p in posts}
         
         pairs = []
+        seen_inputs, seen_outputs = set(), set()
+
         for post in posts:
             if not post.replies_to:
                 continue
@@ -44,6 +66,16 @@ class DataProcessor:
                 if ref_id in post_map:
                     parent = post_map[ref_id]
                     if self.filter_post(parent) and self.filter_post(post):
+                        if self.deduplicate:
+                            norm_input = parent.comment
+                            norm_output = post.comment
+                            if norm_input in seen_inputs:
+                                continue
+                            if norm_output in seen_outputs:
+                                continue
+                            seen_inputs.add(norm_input)
+                            seen_outputs.add(norm_output)
+                        
                         pairs.append({
                             'input': parent.comment,
                             'output': post.comment,
