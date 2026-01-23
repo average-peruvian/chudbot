@@ -1,0 +1,63 @@
+data:
+  input_file: ./data/posts.json
+  mode: completion   
+  min_length: 20
+  max_length: 2000
+  deduplicate: true
+  eval_split: 0.1    
+
+model:
+  name: 3b
+  use_4bit: true
+  system_prompt: null
+  
+  local_models_dir: ./models
+
+tuning:
+  output_dir: ./output/tuning
+  
+  n_trials: 20                    
+  timeout: null                   
+  study_name: llama_finetune_study
+  storage: null                   
+  
+  direction: minimize             
+  metric: eval_loss               
+  
+  enable_pruning: true
+  pruning_warmup_steps: 100
+  
+  epochs_per_trial: 1
+  eval_steps: 50
+  max_seq_length: 512
+  early_stopping_patience: 3
+
+hyperparameters:
+  learning_rate_min: 0.00001      
+  learning_rate_max: 0.0005       
+  
+  lora_r_choices: [8, 16, 32, 64]
+  
+  lora_alpha_choices: [16, 32, 64, 128]
+  
+  lora_dropout_min: 0.0
+  lora_dropout_max: 0.1
+  
+  batch_size_choices: [2, 4, 8]
+  
+  gradient_accumulation_choices: [2, 4, 8]
+  
+  warmup_ratio_min: 0.0
+  warmup_ratio_max: 0.1
+  
+  weight_decay_min: 0.0
+  weight_decay_max: 0.1
+  
+  tune_learning_rate: true
+  tune_lora_r: true
+  tune_lora_alpha: true
+  tune_lora_dropout: true
+  tune_batch_size: false         
+  tune_gradient_accumulation: false
+  tune_warmup_ratio: false
+  tune_weight_decay: true

@@ -13,21 +13,32 @@ from transformers import (
     BitsAndBytesConfig,
     TrainingArguments
 )
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 
 MODELS = {
-    '8b': 'meta-llama/Llama-3.1-8B',
-    '8b-instruct': 'meta-llama/Llama-3.1-8B-Instruct',
-    '70b': 'meta-llama/Llama-3.1-70B',
-    '70b-instruct': 'meta-llama/Llama-3.1-70B-Instruct',
+    "1b": "llama-3.2-1b",
+    "1b-instruct": "llama-3.2-1b-instruct",
+    "3b": "llama-3.2-3b",
+    "3b-instruct": "llama-3.2-3b-instruct",
+    "8b": "llama-3.1-8b",
+    "8b-instruct": "llama-3.1-8b-instruct"
 }
+
+def find_local_model(shorthand, base_dir = './models'):
+    base_dir = Path(base_dir)
+    if not base_dir.exists():
+        return None
+    
+    model_path = base_dir / MODELS[shorthand.lower()]
+    if model_path.exists():
+        return str(model_path).lower()
 
 @dataclass
 class LoRAParams:
     r: int = 16
     lora_alpha: int = 32
     lora_dropout: float = 0.05
-    target_modules: list[str] = [
+    target_modules = [
         'q_proj', 'k_proj', 'v_proj', 'o_proj',
         'gate_proj', 'up_proj', 'down_proj'
     ]
@@ -46,13 +57,13 @@ class TrainingParams:
 
 class LlamaFineTuner:
     def __init__(self,
-        model_name = 'meta-llama/Llama-3.1-8B',
         output_dir = './llama-finetuned',
+        local_models_dir = None,
         use_4bit = True,
         use_8bit = False
         ):
 
-        self.model_name = MODELS.get(model_name, model_name)
+        self.model_name = local_models_dir or ''
         self.output_dir = Path(output_dir)
         self.use_4bit = use_4bit
         self.use_8bit = use_8bit
@@ -80,8 +91,9 @@ class LlamaFineTuner:
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
-            trust_remote_code=True
+            trust_remote_code=True    
         )
+        
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.padding_side = 'right'
 
@@ -127,7 +139,7 @@ class LlamaFineTuner:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        training_args = TrainingArguments(
+        training_args = SFTConfig(
             output_dir=str(self.output_dir),
             num_train_epochs=params.epochs,
             per_device_train_batch_size=params.batch_size,
@@ -144,14 +156,14 @@ class LlamaFineTuner:
             gradient_checkpointing=True,
             report_to='none',
             dataloader_pin_memory=True,
+            max_length=params.max_seq_length,
         )
 
         self.trainer = SFTTrainer(
             model=self.model,
             train_dataset=dataset,
-            tokenizer=self.tokenizer,
-            args=training_args,
-            max_seq_length=params.max_seq_length,
+            processing_class=self.tokenizer,
+            args=training_args
         )
         
         print('Starting training...')
@@ -186,7 +198,7 @@ class LlamaFineTuner:
         adapter_path,
         use_4bit = True
         ):
-        finetuner = cls(model_name=base_model, use_4bit=use_4bit)
+        finetuner = cls(local_models_dir=base_model, use_4bit=use_4bit)
         finetuner.load_model()
         
         finetuner.model = PeftModel.from_pretrained(
