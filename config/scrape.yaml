@@ -1,0 +1,13 @@
+boards:
+  - pol
+  - adv
+  - g
+  - sci
+
+max_threads: 200
+
+min_replies: 5
+
+output_file: ./data/posts.json
+
+rate_limit: 1.0

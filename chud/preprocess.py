@@ -4,6 +4,26 @@ from datasets import Dataset
 
 from .scraper import Post
 
+TEMPLATE_LLAMA = """<|start_header_id|>user<|end_header_id|>
+
+{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+{output}<|eot_id|>"""
+
+TEMPLATE_LLAMA_SYSTEM = """<|start_header_id|>system<|end_header_id|>
+
+{system}<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+{output}<|eot_id|>"""
+
+def get_template(model_name, use_system_prompt = False):
+    if 'instruct' in model_name.lower() and use_system_prompt:
+        return TEMPLATE_LLAMA_SYSTEM
+    
+    return TEMPLATE_LLAMA
+
 def has_url(txt):
     url_patterns = [
             r'https?://',
@@ -97,26 +117,40 @@ class DataProcessor:
     def format_for_training(self,
         data,
         mode = 'completion',
-        chat_template = '### Human: {input}\n\n### Assistant: {output}'
+        model_name = None,
+        system_prompt = None
         ):
         formatted = []
 
         for item in data:
             if mode == 'completion':
                 formatted.append({'text': item['text']})
-            elif mode == 'chat':
-                text = chat_template.format(
-                    input = item['input'],
-                    output = item['output']
-                )
-                formatted.append({'text':text})
 
+            elif mode == 'chat':
+                use_system = system_prompt is not None
+                template = get_template(model_name or "", use_system)
+                
+                for item in data:
+                    if use_system:
+                        text = template.format(
+                            system=system_prompt,
+                            input=item["input"],
+                            output=item["output"]
+                        )
+                    else:
+                        text = template.format(
+                            input=item["input"],
+                            output=item["output"]
+                    )
+                    formatted.append({"text": text})
+        
         return formatted
     
     def create_dataset(self,
         posts,
         mode = 'completion',
-        chat_template = None
+        model_name = None,
+        system_prompt = None
         ):
         """
         Creates a HuggingFace-compatible Dataset from posts.
@@ -126,10 +160,12 @@ class DataProcessor:
         else:
             data = self.build_completion_data(posts)
 
-        if chat_template:
-            formatted = self.format_for_training(data, mode, chat_template)
-        else:
-            formatted = self.format_for_training(data, mode)
+        formatted = self.format_for_training(
+            data, 
+            mode=mode,
+            model_name=model_name,
+            system_prompt=system_prompt
+        )
 
         return Dataset.from_list(formatted)
     

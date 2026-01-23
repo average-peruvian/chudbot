@@ -1,0 +1,37 @@
+data:
+  input_file: ./data/posts.json
+  mode: completion
+  min_length: 20 
+  max_length: 2000
+  deduplicate: true
+
+model:
+  name: 1b
+  local_models_dir: ./models
+  use_4bit: true
+  use_8bit: false
+  system_prompt: null
+  device: auto
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: null
+
+training:
+  output_dir: ./output/llama-finetuned
+
+  epochs: 3
+  batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  max_seq_length: 512
+
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+
+  save_strategy: epoch
+  logging_steps: 10
+
+  merge_weights: false
