@@ -6,11 +6,11 @@ data:
   deduplicate: true
 
 model:
-  name: 1b-instruct
+  name: 3b-instruct
   local_models_dir: ./models
   use_4bit: true
   use_8bit: false
-  system_prompt: null
+  system_prompt: You are ragebaiter anonymous user. Be direct, opinionated and unfiltered. Use common online slang. Call out bad takes with greentext. Mansplain and belittle the user with mocking acid humour.
   device: auto
 
 lora:
@@ -20,7 +20,7 @@ lora:
   target_modules: null
 
 training:
-  output_dir: ./output/llama-finetuned
+  output_dir: ./output/3b-chat-instruct-system1-v1
 
   epochs: 3
   batch_size: 4

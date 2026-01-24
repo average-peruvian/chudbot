@@ -60,13 +60,20 @@ class LlamaFineTuner:
         output_dir = './llama-finetuned',
         local_models_dir = None,
         use_4bit = True,
-        use_8bit = False
+        use_8bit = False,
+        use_cpu = False
         ):
 
         self.model_name = local_models_dir or ''
         self.output_dir = Path(output_dir)
-        self.use_4bit = use_4bit
-        self.use_8bit = use_8bit
+        self.use_cpu = use_cpu
+
+        if use_cpu:
+            self.use_4bit = False
+            self.use_8bit = False
+        else:
+            self.use_4bit = use_4bit
+            self.use_8bit = use_8bit
 
         self.model = None
         self.tokenizer = None
@@ -84,8 +91,9 @@ class LlamaFineTuner:
             return BitsAndBytesConfig(load_in_8bit=True)
         return None
     
-    def load_model(self, device_map = 'auto'):
-        print(f'Loading {self.model_name}...')
+    def load_model(self, device_map = None):
+        if device_map is None:
+            device_map = "cpu" if self.use_cpu else "auto"
 
         bnb_config = self._get_quantization_config()
 
@@ -97,18 +105,26 @@ class LlamaFineTuner:
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.padding_side = 'right'
 
+        if self.use_cpu:
+            # CPU: use float32 for best compatibility, or bfloat16 if supported
+            torch_dtype = torch.float32
+        elif bnb_config:
+            torch_dtype = None  # Let quantization handle it
+        else:
+            torch_dtype = torch.bfloat16
+
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=bnb_config,
             device_map=device_map,
             trust_remote_code=True,
-            torch_dtype=torch.bfloat16 if not bnb_config else None
+            dtype=torch_dtype,
+            low_cpu_mem_usage=True
         )
 
         if self.use_4bit or self.use_8bit:
             self.model = prepare_model_for_kbit_training(self.model)
 
-        print("Model loaded successfully!")
         return self
     
     def setup_lora(self, params = None):
@@ -139,6 +155,19 @@ class LlamaFineTuner:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        if self.use_cpu:
+            use_bf16 = False
+            use_fp16 = False
+            optim = "adamw_torch"
+            dataloader_pin_memory = False
+            gradient_checkpointing = False  # Can cause issues on CPU
+        else:
+            use_bf16 = torch.cuda.is_bf16_supported()
+            use_fp16 = not use_bf16 and torch.cuda.is_available()
+            optim = "paged_adamw_8bit" if (self.use_4bit or self.use_8bit) else "adamw_torch"
+            dataloader_pin_memory = True
+            gradient_checkpointing = True
+
         training_args = SFTConfig(
             output_dir=str(self.output_dir),
             num_train_epochs=params.epochs,
@@ -150,12 +179,12 @@ class LlamaFineTuner:
             lr_scheduler_type='cosine',
             logging_steps=params.logging_steps,
             save_strategy=params.save_strategy,
-            bf16=torch.cuda.is_bf16_supported(),
-            fp16=not torch.cuda.is_bf16_supported() and torch.cuda.is_available(),
-            optim='paged_adamw_8bit' if (self.use_4bit or self.use_8bit) else 'adamw_torch',
-            gradient_checkpointing=True,
+            bf16=use_bf16,
+            fp16=use_fp16,
+            optim=optim,
+            gradient_checkpointing=gradient_checkpointing,
             report_to='none',
-            dataloader_pin_memory=True,
+            dataloader_pin_memory=dataloader_pin_memory,
             max_length=params.max_seq_length,
         )
 
@@ -196,36 +225,16 @@ class LlamaFineTuner:
         cls,
         base_model,
         adapter_path,
-        use_4bit = True
+        use_4bit = True,
+        use_cpu = False
         ):
-        finetuner = cls(local_models_dir=base_model, use_4bit=use_4bit)
+        finetuner = cls(local_models_dir=base_model, use_4bit=use_4bit, use_cpu=use_cpu)
         finetuner.load_model()
         
         finetuner.model = PeftModel.from_pretrained(
             finetuner.model,
             adapter_path
         )
+        finetuner.model.eval()
         
         return finetuner.model, finetuner.tokenizer
-    
-def generate_text(
-    model,
-    tokenizer,
-    prompt,
-    max_new_tokens = 256,
-    temperature = 0.7,
-    top_p = 0.9,
-    ):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-    
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
