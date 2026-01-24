@@ -3,10 +3,11 @@ boards:
   - adv
   - g
   - sci
+  - int
 
 max_threads: 200
 
-min_replies: 5
+min_replies: 3
 
 output_file: ./data/posts.json
 

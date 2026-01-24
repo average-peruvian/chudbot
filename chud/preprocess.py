@@ -1,8 +1,9 @@
-import json, re
+import json, re, os
 from pathlib import Path
 from datasets import Dataset
+from tqdm import tqdm
 
-from .scraper import Post
+from .scraper import Post, extract_refs, clean_comment
 
 LLAMA_TEMPLATE = """<|start_header_id|>{role}<|end_header_id|>
 
@@ -188,3 +189,40 @@ def load_posts(filepath):
     posts = [Post.from_dict(p) for p in data]
     print(f'Loaded {len(posts)} posts from {filepath}')
     return posts
+
+def dump_big_log(input_file, output_file):
+    filesize = os.path.getsize(input_file)
+
+    with open(input_file,'r',encoding='utf8') as inp, open(output_file, 'w', encoding='utf-8') as out:
+        with tqdm(total=filesize, unit='B', unit_scale=True) as pbar:
+            for line_no, line in enumerate(inp, 1):
+                pbar.update(len(line))
+                if not line.strip():
+                    continue
+
+                try:
+                    thread_meta = json.loads(line)
+                    thread_posts = thread_meta.get('posts', [])
+                    thread_id = thread_meta.get('no',-1)
+                except json.JSONDecodeError:
+                    continue
+
+                for j, post_data in enumerate(thread_posts):
+                        comment = clean_comment(post_data.get('com',''))
+                        if not comment:
+                            continue
+
+                        refs = extract_refs(comment)
+                        comment = re.sub(r'>>\d+\s*','',comment)
+
+                        post = Post(
+                            post_id = post_data['no'],
+                            thread_id = thread_id,
+                            board = 'pol',
+                            comment = comment,
+                            timestamp = post_data.get('time',0),
+                            is_op = (j == 0),
+                            replies_to = refs
+                        )
+
+                        out.write(json.dumps(post.to_dict(), ensure_ascii=False, indent=2) + ",\n")
