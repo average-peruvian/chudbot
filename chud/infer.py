@@ -45,7 +45,7 @@ class GenerationConfig:
     top_k: int = 50
     repetition_penalty: float = 1.1
     do_sample: bool = True
-    stop_sequences: list = []
+    stop_sequences: list[str] = None
 
 def generate(
     model,
