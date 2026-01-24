@@ -4,25 +4,38 @@ from datasets import Dataset
 
 from .scraper import Post
 
-TEMPLATE_LLAMA = """<|start_header_id|>user<|end_header_id|>
+LLAMA_TEMPLATE = """<|start_header_id|>{role}<|end_header_id|>
 
-{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+{content}<|eot_id|>"""
 
-{output}<|eot_id|>"""
+def format_prompt(
+        user_input,
+        system_prompt = None,
+        assist_output = None
+    ):
+    formatted = ""
 
-TEMPLATE_LLAMA_SYSTEM = """<|start_header_id|>system<|end_header_id|>
+    # System part
+    if system_prompt:
+        formatted += LLAMA_TEMPLATE.format(
+            role='system',
+            content=system_prompt
+        )
 
-{system}<|eot_id|><|start_header_id|>user<|end_header_id|>
+    # User part
+    formatted += LLAMA_TEMPLATE.format(
+        role='user',
+        content=user_input
+    )
 
-{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+    # Assistant part
+    if assist_output:
+        formatted += LLAMA_TEMPLATE.format(
+            role='assistant',
+            content=assist_output
+        )
 
-{output}<|eot_id|>"""
-
-def get_template(model_name, use_system_prompt = False):
-    if 'instruct' in model_name.lower() and use_system_prompt:
-        return TEMPLATE_LLAMA_SYSTEM
-    
-    return TEMPLATE_LLAMA
+    return formatted
 
 def has_url(txt):
     url_patterns = [
@@ -127,22 +140,12 @@ class DataProcessor:
                 formatted.append({'text': item['text']})
 
             elif mode == 'chat':
-                use_system = system_prompt is not None
-                template = get_template(model_name or "", use_system)
-                
-                for item in data:
-                    if use_system:
-                        text = template.format(
-                            system=system_prompt,
-                            input=item["input"],
-                            output=item["output"]
-                        )
-                    else:
-                        text = template.format(
-                            input=item["input"],
-                            output=item["output"]
-                    )
-                    formatted.append({"text": text})
+                text = format_prompt(
+                    user_input = item['input'],
+                    system_prompt = system_prompt,
+                    assist_output = item['output']
+                )
+                formatted.append({"text": text})
         
         return formatted
     
