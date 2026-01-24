@@ -1,5 +1,5 @@
 import torch
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Thread
 
 from .preprocess import LLAMA_TEMPLATE
@@ -39,13 +39,13 @@ def load_model(
 
 @dataclass
 class GenerationConfig:
-    max_new_tokens: int = 256
+    max_new_tokens: int = 50
     temperature: float = 0.7
     top_p: float = 0.9
     top_k: int = 50
-    repetition_penalty: float = 1.1
+    repetition_penalty: float = 1.3
     do_sample: bool = True
-    stop_sequences: list[str] = None
+    stop_sequences = ['\n\n']
 
 def generate(
     model,
@@ -195,9 +195,9 @@ class Chat:
         if config is None:
             self.config = GenerationConfig()
 
+        self.system_prompt = system_prompt
         if self.system_prompt:
             self.messages.append({"role": "system", "content": self.system_prompt})
-        self.system_prompt = system_prompt
 
     def send(self,
         user_input,

@@ -71,7 +71,6 @@ class LlamaFineTuner:
         if use_cpu:
             self.use_4bit = False
             self.use_8bit = False
-            print("CPU mode enabled - quantization disabled")
         else:
             self.use_4bit = use_4bit
             self.use_8bit = use_8bit
@@ -93,8 +92,6 @@ class LlamaFineTuner:
         return None
     
     def load_model(self, device_map = None):
-        print(f'Loading {self.model_name}...')
-
         if device_map is None:
             device_map = "cpu" if self.use_cpu else "auto"
 
@@ -121,14 +118,13 @@ class LlamaFineTuner:
             quantization_config=bnb_config,
             device_map=device_map,
             trust_remote_code=True,
-            torch_dtype=torch_dtype,
+            dtype=torch_dtype,
             low_cpu_mem_usage=True
         )
 
         if self.use_4bit or self.use_8bit:
             self.model = prepare_model_for_kbit_training(self.model)
 
-        print("Model loaded successfully!")
         return self
     
     def setup_lora(self, params = None):

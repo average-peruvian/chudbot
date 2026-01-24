@@ -6,7 +6,7 @@ data:
   deduplicate: true
 
 model:
-  name: 1b-instruct
+  name: 3b-instruct
   local_models_dir: ./models
   use_4bit: true
   use_8bit: false
@@ -20,7 +20,7 @@ lora:
   target_modules: null
 
 training:
-  output_dir: ./output/llama-finetuned
+  output_dir: ./output/3b-chat-instruct-v1
 
   epochs: 3
   batch_size: 4

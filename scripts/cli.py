@@ -9,6 +9,9 @@ from chud.infer import (
     interactive_mode
 )
 
+import warnings
+warnings.filterwarnings('ignore')
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run inferences with finetuned model",
@@ -63,7 +66,7 @@ Examples:
             args.prompt,
             system_prompt=args.system,
         ) + '<|start_header_id|>assistant<|end_header_id|>\n\n'
-        
+
         if args.no_stream:
             response = generate(model, tokenizer, prompt, config)
             print(f"CHUD: {response}")
