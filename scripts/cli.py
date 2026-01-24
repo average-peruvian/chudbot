@@ -11,24 +11,24 @@ from chud.infer import (
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run inference with finetuned model",
+        description="Run inferences with finetuned model",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
     # Interactive chat
-    python inference.py --model 3b --adapter ./output
+    python cli.py --model 3b --adapter ./output
     
     # Single prompt
-    python inference.py --model 3b --prompt "Hello!"
+    python cli.py --model 3b --prompt "Hello!"
     
-    # CPU inference
-    python inference.py --model 3b --adapter ./output --cpu
+    # CPU cli
+    python cli.py --model 3b --adapter ./output --cpu
     
     # With system prompt
-    python inference.py --model 3b-instruct --system "You are a pirate."
+    python cli.py --model 3b-instruct --system "You are a pirate."
     
     # Disable streaming
-    python inference.py --model 3b --no-stream
+    python cli.py --model 3b --no-stream
 """
     )
     
