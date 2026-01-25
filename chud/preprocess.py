@@ -2,6 +2,7 @@ import json, re, os
 from pathlib import Path
 from datasets import Dataset
 from tqdm import tqdm
+import gc
 
 from .scraper import Post, extract_refs, clean_comment
 
@@ -115,6 +116,8 @@ class DataProcessor:
                             'output': post.comment,
                             'board': post.board
                         })
+
+                        gc.collect()
 
         return pairs
     

@@ -20,9 +20,9 @@ lora:
   target_modules: null
 
 training:
-  output_dir: ./output/1b-chat-instruct-v1
+  output_dir: ./output/1b-chat-instruct-v2
 
-  epochs: 3
+  epochs: 2
   batch_size: 4
   gradient_accumulation_steps: 4
   learning_rate: 0.0002
