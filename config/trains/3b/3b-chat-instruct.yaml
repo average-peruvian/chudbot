@@ -4,6 +4,7 @@ data:
   min_length: 20 
   max_length: 2000
   deduplicate: true
+  max_posts: 150000
 
 model:
   name: 3b-instruct

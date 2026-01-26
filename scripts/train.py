@@ -27,7 +27,7 @@ def main():
     local_dir = find_local_model(config['model']['name'],config['model']['local_models_dir'])
 
     print("=== LOADING DATA ===")
-    posts = load_posts(config["data"]["input_file"])
+    posts = load_posts(config["data"]["input_file"], max_posts=config['data']['max_posts'])
 
     print("\n=== PROCESSING DATA ===")
     processor = DataProcessor(

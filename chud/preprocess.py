@@ -119,6 +119,7 @@ class DataProcessor:
 
                         gc.collect()
 
+        gc.collect()
         return pairs
     
     def build_completion_data(self, posts):
@@ -185,12 +186,14 @@ def save_posts(posts, filepath):
 
     print(f'Saved {len(posts)} posts to {filepath}.')
 
-def load_posts(filepath):
+def load_posts(filepath, max_posts=150000):
     with open(filepath) as f:
         data = json.load(f)
 
-    posts = [Post.from_dict(p) for p in data]
+    posts = [Post.from_dict(p) for p in data[:max_posts]]
     print(f'Loaded {len(posts)} posts from {filepath}')
+    
+    del data
     return posts
 
 def dump_big_log(input_file, output_file):
