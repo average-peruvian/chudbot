@@ -1,4 +1,4 @@
-import json, re, os
+import json, re, os, ijson
 from pathlib import Path
 from datasets import Dataset
 from tqdm import tqdm
@@ -187,13 +187,16 @@ def save_posts(posts, filepath):
     print(f'Saved {len(posts)} posts to {filepath}.')
 
 def load_posts(filepath, max_posts=150000):
-    with open(filepath) as f:
-        data = json.load(f)
+    posts = []
 
-    posts = [Post.from_dict(p) for p in data[:max_posts]]
+    with open(filepath, 'rb') as f:
+        for i, post in enumerate(tqdm(ijson.items(f, 'item'),total=max_posts)):
+            if i >= max_posts:
+                break
+            posts.append(
+                Post.from_dict(post)
+            )
     print(f'Loaded {len(posts)} posts from {filepath}')
-    
-    del data
     return posts
 
 def dump_big_log(input_file, output_file):
