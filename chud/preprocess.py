@@ -117,8 +117,6 @@ class DataProcessor:
                             'board': post.board
                         })
 
-                        gc.collect()
-
         gc.collect()
         return pairs
     
