@@ -92,7 +92,7 @@ class DataProcessor:
         pairs = []
         seen_inputs, seen_outputs = set(), set()
 
-        for post in posts:
+        for post in tqdm(posts):
             if not post.replies_to:
                 continue
 
